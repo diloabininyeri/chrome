@@ -369,4 +369,5 @@ class ChromeActionManager
        $this->executeJs($tabId,"(function (){ return  document.querySelector('$id').value=$value;})()");
         return $this->fetchResponse();
     }
+
 }
