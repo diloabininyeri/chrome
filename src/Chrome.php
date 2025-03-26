@@ -39,4 +39,9 @@ class Chrome
             }
         }
     }
+
+    public function getSocket(): SocketInterface
+    {
+        return $this->socket;
+    }
 }

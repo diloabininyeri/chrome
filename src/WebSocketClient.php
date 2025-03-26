@@ -22,7 +22,7 @@ class WebSocketClient implements SocketInterface
     /**
      * @param string $wsUri
      */
-    public function __construct(string $wsUri)
+    public function __construct(private readonly string $wsUri)
     {
         $this->handshake = new HandShake($wsUri);
         $this->codec = new WebSocketCodec();
@@ -91,4 +91,8 @@ class WebSocketClient implements SocketInterface
         );
     }
 
+    public function getWsUri(): string
+    {
+        return $this->wsUri;
+    }
 }
