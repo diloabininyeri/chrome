@@ -15,6 +15,8 @@ class ChromeActionManager
      */
     private int $id = 0;
 
+    private array $messageQueue = [];
+
     /**
      * @param Chrome $chrome
      */
@@ -30,6 +32,7 @@ class ChromeActionManager
     private function execute(array $args): void
     {
         $this->chrome->send(Command::fromArray($args)->safeToJson());
+        $this->bufferMessages($args['id']);
     }
 
     /***
@@ -38,7 +41,7 @@ class ChromeActionManager
      * @param bool $returnResult
      * @return array
      */
-    public function executeJs(string $tabId,#[Language("JavaScript")]string $jsCode,bool $returnResult = false): array
+    public function executeJs(string $tabId, #[Language("JavaScript")] string $jsCode, bool $returnResult = false): array
     {
         $command = [
             'id' => $this->nextId(),
@@ -52,7 +55,7 @@ class ChromeActionManager
         $this->execute($command);
         $startTime = microtime(true);
         while ((microtime(true) - $startTime) * 1000 < 300000) {
-            $response = $this->fetchResponse();
+            $response = $this->fetchResponse($command['id']);
             if (isset($response['result'])) {
                 return $response;
             }
@@ -76,7 +79,7 @@ class ChromeActionManager
             'params' => ['url' => $url]
         ];
         $this->execute($command);
-        return $this->fetchResponse();
+        return $this->fetchResponse($command['id']);
     }
 
     /**
@@ -91,7 +94,33 @@ class ChromeActionManager
             'params' => ['targetId' => $tabId]
         ];
         $this->execute($command);
-        return $this->fetchResponse();
+        return $this->fetchResponse($command['id']);
+    }
+
+
+    public function closeAllTabs(): void
+    {
+
+        $command = [
+            'id' => $this->nextId(),
+            'method' => 'Target.getTargets'
+        ];
+
+
+        $this->execute($command);
+        $response = $this->fetchResponse($command['id']);
+        /*
+                if (!isset($response['result']['targetInfos'])) {
+                    throw new \Exception("Sekmeler alınamadı!");
+                }*/
+
+
+        foreach ($response['result']['targetInfos'] as $target) {
+            if (isset($target['targetId'])) {
+                $this->closeTab($target['targetId']);
+            }
+        }
+
     }
 
     /**
@@ -172,7 +201,7 @@ class ChromeActionManager
             ]
         ];
         $this->execute($command);
-        return $this->fetchResponse();
+        return $this->fetchResponse($command['id']);
     }
 
     /**
@@ -189,12 +218,13 @@ class ChromeActionManager
             'params' => ['url' => $url]
         ]);
 
+        $nextId = $this->nextId();
         $this->execute([
-            'id' => $this->nextId(),
+            'id' => $nextId,
             'method' => 'Page.enable'
         ]);
         while (true) {
-            $response = $this->chrome->read();
+            $response = $this->fetchResponse($nextId);
             if (isset($response['method']) && $response['method'] === 'Page.frameStoppedLoading') {
                 break;
             }
@@ -210,7 +240,7 @@ class ChromeActionManager
             ]
         ]);
 
-        $response = $this->fetchResponse();
+        $response = $this->fetchResponse($htmlId);
         return $response['result']['result']['value'] ?? '';
     }
 
@@ -260,7 +290,7 @@ class ChromeActionManager
             ]
         ];
         $this->execute($command);
-        return $this->fetchResponse();
+        return $this->fetchResponse($command['id']);
     }
 
     /**
@@ -347,12 +377,14 @@ class ChromeActionManager
         return ++$this->id;
     }
 
-    /**
+    /***
+     * @param int $id
      * @return array
+     *
      */
-    public function fetchResponse(): array
+    public function fetchResponse(int $id): array
     {
-        return $this->chrome->read();
+        return $this->messageQueue[$id];
     }
 
     /**
@@ -363,11 +395,15 @@ class ChromeActionManager
         return $this->chrome;
     }
 
-    public function input(string $tabId,string $id,int|string|null $value):array
+    public function input(string $tabId, string $id, int|string|null $value): array
     {
-        //todo
-       $this->executeJs($tabId,"(function (){ return  document.querySelector('$id').value=$value;})()");
-        return $this->fetchResponse();
+        return $this->executeJs($tabId, "(function (){ return  document.querySelector('$id').value=$value;})()");
+
     }
 
+
+    public function bufferMessages(int $id): void
+    {
+        $this->messageQueue[$id] = $this->chrome->read();
+    }
 }

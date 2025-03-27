@@ -10,9 +10,15 @@ use JsonException;
 readonly class ChromeTabManager
 {
 
-    public function __construct(private string $debugUrl)
+    private ?ChromeActionManager $actionManager;
+
+    public function __construct(private string $debugUrl = 'http://0.0.0.0:9222')
     {
     }
+
+    /**
+     * @return ChromeTab[]
+     */
 
     public function all(): array
     {
@@ -25,7 +31,8 @@ readonly class ChromeTabManager
     {
         return array_find(
             $this->all(),
-            static fn(ChromeTab $tab) => $tab->getId() === $tabId);
+            static fn(ChromeTab $tab) => $tab->getId() === $tabId
+        );
     }
 
     /**
@@ -33,7 +40,8 @@ readonly class ChromeTabManager
      */
     public function first(): ChromeTab
     {
-        return $this->all()[0];
+        $chromeTabs = $this->all();
+        return $chromeTabs[0] ?? throw new ChromeException('There is no open chrome\'s tab,please restart the chrome');
     }
 
     /**
@@ -50,8 +58,8 @@ readonly class ChromeTabManager
         curl_close($curlHandle);
         try {
             return json_decode($response, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
-            throw new DebugRequestException("Unable to fetch tabs: {$e->getMessage()}");
+        } catch (JsonException) {
+            throw new DebugRequestException('tabs not found');
         }
 
     }
@@ -60,13 +68,14 @@ readonly class ChromeTabManager
      * @return ChromeActionManager
      */
 
-    public function listen(): ChromeActionManager
+    public function getEventManager(): ChromeActionManager
     {
-        return new ChromeActionManager(
+        $this->actionManager ??= new ChromeActionManager(
             new Chrome(
                 new WebSocketClient(
                     $this->first()->getWebSocketDebuggerUrl()
                 )
             ));
+        return $this->actionManager;
     }
 }

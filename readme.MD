@@ -3,6 +3,7 @@ to start the chrome client
 ```console
 google-chrome --headless --remote-debugging-port=9222 --remote-debugging-host=127.0.0.1 --no-sandbox --remote-allow-origins=*
 ```
+
 ```php
 <?php
 
@@ -14,7 +15,7 @@ require_once 'vendor/autoload.php';
 $chromeTabManager = new ChromeTabManager('http://127.0.0.1:9222');
 
 
-$chromeActionManager = $chromeTabManager->listen();
+$chromeActionManager = $chromeTabManager->getEventManager();
 
 
 $openNewTab = $chromeActionManager->openNewTab('https://www.google.com');
