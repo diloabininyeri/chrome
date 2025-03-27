@@ -2,6 +2,7 @@
 
 namespace Zeus\Chrome;
 
+use Closure;
 use JetBrains\PhpStorm\Language;
 
 /**
@@ -69,9 +70,9 @@ class ChromeActionManager
 
     /**
      * @param string $url
-     * @return array
+     * @return mixed
      */
-    public function openNewTab(string $url = 'about:blank'): array
+    public function openNewTab(string $url = 'about:blank'): mixed
     {
         $command = [
             'id' => $this->nextId(),
@@ -79,7 +80,7 @@ class ChromeActionManager
             'params' => ['url' => $url]
         ];
         $this->execute($command);
-        return $this->fetchResponse($command['id']);
+        return $this->fetchResponse($command['id'])['result']['targetId'];
     }
 
     /**
@@ -189,7 +190,7 @@ class ChromeActionManager
      * @param int $quality
      * @return array
      */
-    public function takeScreenshot(string $tabId, string $format = 'png', int $quality = 100): array
+    public function takeScreenshot(string $tabId, string $format = 'png', int $quality = 100,?string $imagePath=null): string
     {
         $command = [
             'id' => $this->nextId(),
@@ -201,14 +202,22 @@ class ChromeActionManager
             ]
         ];
         $this->execute($command);
-        return $this->fetchResponse($command['id']);
+        $response = $this->fetchResponse($command['id']);
+        $data= $response['result']['data'];
+        if ($imagePath) {
+            file_put_contents($imagePath, base64_decode($data));
+            return $imagePath;
+        }
+        return $data;
+
     }
 
-    /**
+    /***
      * @param string $url
+     * @param Closure|null $closure
      * @return string
      */
-    public function visit(string $url): string
+    public function visit(string $url,?Closure $closure=null): string
     {
 
         $navigateId = $this->nextId();
@@ -241,6 +250,9 @@ class ChromeActionManager
         ]);
 
         $response = $this->fetchResponse($htmlId);
+        if ($closure!== null) {
+          return  $closure($response);
+        }
         return $response['result']['result']['value'] ?? '';
     }
 
@@ -274,12 +286,13 @@ class ChromeActionManager
     }
 
 
-    /**
+    /***
      * @param string $tabId
      * @param string $url
+     * @param Closure|null $closure
      * @return array
      */
-    public function navigate(string $tabId, string $url): array
+    public function navigate(string $tabId, string $url,?Closure $closure=null): array
     {
         $command = [
             'id' => $this->nextId(),
@@ -290,13 +303,17 @@ class ChromeActionManager
             ]
         ];
         $this->execute($command);
+        if($closure) {
+            return $closure($this->fetchResponse($command['id']));
+        }
         return $this->fetchResponse($command['id']);
     }
 
-    /**
+    /****
+     * @param Closure|null $closure
      * @return array
      */
-    public function getDomDocument(): array
+    public function getDomDocument(?Closure $closure=null): array
     {
         $command = [
             'id' => $this->nextId(),
@@ -304,16 +321,20 @@ class ChromeActionManager
             'params' => []
         ];
         $this->execute($command);
-        return $this->fetchResponse();
+        if ($closure) {
+            return $closure($this->fetchResponse($command['id']));
+        }
+        return $this->fetchResponse($command['id']);
 
     }
 
 
-    /**
+    /***
      * @param string $tabId
+     * @param Closure|null $closure
      * @return string
      */
-    public function fetchTitle(string $tabId): string
+    public function fetchTitle(string $tabId,?Closure $closure=null): string
     {
         $command = [
             'id' => $this->nextId(),
@@ -321,14 +342,18 @@ class ChromeActionManager
             'params' => ['tabId' => $tabId]
         ];
         $this->execute($command);
-        return $this->fetchResponse()['result']['title'];
+        if ($closure) {
+            return $closure($this->fetchResponse($command['id']));
+        }
+        return $this->fetchResponse($command['id'])['result']['title'];
     }
 
-    /**
+    /***
      * @param string $tabId
+     * @param Closure|null $closure
      * @return string
      */
-    public function fetchUrl(string $tabId): string
+    public function fetchUrl(string $tabId,?Closure $closure=null): string
     {
         $command = [
             'id' => $this->nextId(),
@@ -336,14 +361,18 @@ class ChromeActionManager
             'params' => ['tabId' => $tabId]
         ];
         $this->execute($command);
-        return $this->fetchResponse()['result']['url'];
+        if ($closure) {
+            return $closure($this->fetchResponse($command['id']));
+        }
+        return $this->fetchResponse($command['id'])['result']['url'];
     }
 
-    /**
+    /***
      * @param string $tabId
+     * @param Closure|null $closure
      * @return string
      */
-    public function fetchContent(string $tabId): string
+    public function fetchContent(string $tabId,?Closure $closure=null): string
     {
         $command = [
             'id' => $this->nextId(),
@@ -351,7 +380,10 @@ class ChromeActionManager
             'params' => ['tabId' => $tabId]
         ];
         $this->execute($command);
-        $response = $this->fetchResponse();
+        $response = $this->fetchResponse($command['id']);
+        if ($closure) {
+            return $closure($response);
+        }
         return $response['result']['content'];
     }
 
@@ -365,7 +397,7 @@ class ChromeActionManager
             'method' => 'Performance.getMetrics'
         ];
         $this->execute($command);
-        $metrics = $this->fetchResponse()['result']['metrics'];
+        $metrics = $this->fetchResponse($command['id'])['result']['metrics'];
         return $metrics['browserProcessMemoryMB'] / 1024;
     }
 

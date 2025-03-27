@@ -12,24 +12,17 @@ use Zeus\Chrome\ChromeTabManager;
 require_once 'vendor/autoload.php';
 
 
-$chromeTabManager = new ChromeTabManager('http://127.0.0.1:9222');
+$chromeTabManager = new ChromeTabManager();
 
 
 $chromeActionManager = $chromeTabManager->getEventManager();
 
 
-$openNewTab = $chromeActionManager->openNewTab('https://www.google.com');
-$tabId = $openNewTab['result']['targetId'];
+$google = $chromeActionManager->openNewTab('https://www.google.com');
 
-$takeScreenshot = $chromeActionManager->takeScreenshot($tabId);
+$response = $chromeActionManager->takeScreenshot(tabId: $google, imagePath: __DIR__ . '/google.png');
 
-$image = $takeScreenshot['result']['data'];
-file_put_contents('image.png', base64_decode($image));
-
-
-
-$chromeActionManager->closeTab($tabId);
-$chromeActionManager->getChrome()->disconnect();
+echo $response; ///home/zeus/PhpstormProjects/chrome/google.png
 
 ```
 **development will continue**
